@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Import {
                         module: "wasi_unstable".into(),
                         name: "fd_write".into(),
-                        desc: ImportDesc::Func(1),
+                        desc: ImportDesc::Func(0),
                     }
                 ]
             }
@@ -33,10 +33,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         type_sections: vec![
             TypeSection {
                 func_types: vec![
-                    FuncType {
-                        parameters: vec![],
-                        results: vec![],
-                    },
                     FuncType {
                         parameters: vec![
                             ValueType::I32,
@@ -48,20 +44,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             ValueType::I32,
                         ]
                     },
+                    FuncType {
+                        parameters: vec![],
+                        results: vec![],
+                    },
                 ]
             }
         ],
         function_sections: vec![
             FunctionSection {
-                types: vec![0],
+                types: vec![1],
             }
         ],
         export_sections: vec![
             ExportSection {
                 exports: vec![
                     Export {
-                        name: "main".into(),
-                        desc: ExportDesc::Func(0),
+                        name: "_start".into(),
+                        desc: ExportDesc::Func(1),
+                    },
+                    Export {
+                        name: "memory".into(),
+                        desc: ExportDesc::Mem(0),
                     }
                 ]
             }
@@ -74,7 +78,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             locals: vec![],
                             expr: Expr {
                                 instructions: vec![
-                                    Instruction::I32Const(81),
+                                    // Store a character "A"
+                                    Instruction::I32Const(8),
+                                    Instruction::I32Const(65),
+                                    Instruction::I32Store(MemArg { align: 2, offset: 0, }),
+
+                                    // Store a character "\n"
+                                    Instruction::I32Const(9),
+                                    Instruction::I32Const(10),
+                                    Instruction::I32Store(MemArg { align: 2, offset: 0, }),
+
+                                    // Store a pointer
+                                    Instruction::I32Const(0),
+                                    Instruction::I32Const(8),
+                                    Instruction::I32Store(MemArg { align: 2, offset: 0, }),
+
+                                    // Store the length
+                                    Instruction::I32Const(4),
+                                    Instruction::I32Const(2),
+                                    Instruction::I32Store(MemArg { align: 2, offset: 0, }),
+
+                                    // Write
+                                    Instruction::I32Const(1), // File descriptor
+                                    Instruction::I32Const(0), // Data pointer
+                                    Instruction::I32Const(1), // Number of strings
+                                    Instruction::I32Const(0), // Where to put the number of bytes written
+                                    Instruction::Call(0),
+
                                     Instruction::Drop,
                                 ]
                             },

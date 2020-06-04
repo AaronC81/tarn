@@ -60,8 +60,8 @@ impl WasmCodeGen for BlockType {
 }
 
 pub struct MemArg {
-    align: u32,
-    offset: u32,
+    pub align: u32,
+    pub offset: u32,
 }
 
 impl WasmCodeGen for MemArg {
