@@ -3,7 +3,12 @@ mod wasm;
 use std::fs::File;
 use std::io::Write;
 
-use crate::wasm::*;
+use crate::wasm::{
+    core::*,
+    instruction::*,
+    sections::{*, code_section::*, data_section::*, export_section::*, import_section::*, memory_section::*, type_section::*},
+    module::*,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module = Module {
