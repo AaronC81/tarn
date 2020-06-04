@@ -248,19 +248,40 @@ impl WasmCodeGen for Limits {
     }
 }
 
-pub struct MemorySection {
-    pub memories: Vec<Memory>,
+pub trait Section {
+    const ID: u8;
 }
 
-impl WasmCodeGen for MemorySection {
+pub trait BodySection {
+    const ID: u8;
+    type BodyItem : WasmCodeGen;
+
+    fn body_item(&self) -> &Vec<Self::BodyItem>;
+}
+
+impl<T : BodySection> Section for T {
+    const ID: u8 = Self::ID;
+}
+
+impl<T : BodySection> WasmCodeGen for T {
     fn generate_wasm(&self) -> Vec<u8> {
-        let body = self.generate_wasm_vec(&self.memories);
+        let body = self.generate_wasm_vec(&self.body_item());
         [
-            vec![5], // section ID
+            vec![Self::ID],
             encode_u32(body.len() as u32),
             body,
         ].concat()
     }
+}
+
+pub struct MemorySection {
+    pub memories: Vec<Memory>,
+}
+
+impl BodySection for MemorySection {
+    const ID: u8 = 5;
+    type BodyItem = Memory;
+    fn body_item(&self) -> &Vec<Self::BodyItem> { &self.memories }
 }
 
 pub struct Memory {
@@ -277,15 +298,10 @@ pub struct ImportSection {
     pub imports: Vec<Import>,
 }
 
-impl WasmCodeGen for ImportSection {
-    fn generate_wasm(&self) -> Vec<u8> {
-        let body = self.generate_wasm_vec(&self.imports);
-        [
-            vec![2], // section ID
-            encode_u32(body.len() as u32),
-            body,
-        ].concat()
-    }
+impl BodySection for ImportSection {
+    const ID: u8 = 2;
+    type BodyItem = Import;
+    fn body_item(&self) -> &Vec<Self::BodyItem> { &self.imports }
 }
 
 pub struct Import {
@@ -324,30 +340,20 @@ pub struct FunctionSection {
     pub types: Vec<u32>,
 }
 
-impl WasmCodeGen for FunctionSection {
-    fn generate_wasm(&self) -> Vec<u8> {
-        let body = self.generate_wasm_vec(&self.types);
-        [
-            vec![3], // section ID
-            encode_u32(body.len() as u32),
-            body,
-        ].concat()
-    }
+impl BodySection for FunctionSection {
+    const ID: u8 = 3;
+    type BodyItem = u32;
+    fn body_item(&self) -> &Vec<Self::BodyItem> { &self.types }
 }
 
 pub struct TypeSection {
     pub func_types: Vec<FuncType>,
 }
 
-impl WasmCodeGen for TypeSection {
-    fn generate_wasm(&self) -> Vec<u8> {
-        let body = self.generate_wasm_vec(&self.func_types);
-        [
-            vec![1], // section ID
-            encode_u32(body.len() as u32),
-            body,
-        ].concat()
-    }
+impl BodySection for TypeSection {
+    const ID: u8 = 1;
+    type BodyItem = FuncType;
+    fn body_item(&self) -> &Vec<Self::BodyItem> { &self.func_types }
 }
 
 pub struct FuncType {
@@ -369,30 +375,19 @@ pub struct CodeSection {
     pub codes: Vec<Code>,
 }
 
-impl WasmCodeGen for CodeSection {
-    fn generate_wasm(&self) -> Vec<u8> {
-        let body = self.generate_wasm_vec(&self.codes);
-        [
-            vec![10], // section ID
-            encode_u32(body.len() as u32),
-            body,
-        ].concat()
-    }
+impl BodySection for CodeSection {
+    const ID: u8 = 10;
+    type BodyItem = Code;
+    fn body_item(&self) -> &Vec<Self::BodyItem> { &self.codes }
 }
-
 pub struct ExportSection {
     pub exports: Vec<Export>,
 }
 
-impl WasmCodeGen for ExportSection {
-    fn generate_wasm(&self) -> Vec<u8> {
-        let body = self.generate_wasm_vec(&self.exports);
-        [
-            vec![7], // section ID
-            encode_u32(body.len() as u32),
-            body,
-        ].concat()
-    }
+impl BodySection for ExportSection {
+    const ID: u8 = 7;
+    type BodyItem = Export;
+    fn body_item(&self) -> &Vec<Self::BodyItem> { &self.exports }
 }
 
 pub struct Export {
