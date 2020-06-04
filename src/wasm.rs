@@ -199,6 +199,7 @@ pub struct Module {
     pub memory_sections: Vec<MemorySection>,
     pub export_sections: Vec<ExportSection>,
     pub code_sections: Vec<CodeSection>,
+    pub data_sections: Vec<DataSection>,
 }
 
 impl Module {
@@ -222,6 +223,7 @@ impl WasmCodeGen for Module {
             self.generate_wasm_seq(&self.memory_sections),
             self.generate_wasm_seq(&self.export_sections),
             self.generate_wasm_seq(&self.code_sections),
+            self.generate_wasm_seq(&self.data_sections),
         ].concat()
     }
 }
@@ -435,6 +437,33 @@ impl WasmCodeGen for ExportDesc {
                 encode_u32(*i),
             ].concat()
         }
+    }
+}
+
+pub struct DataSection {
+    pub data: Vec<Data>,
+}
+
+impl BodySection for DataSection {
+    const ID: u8 = 11;
+    type BodyItem = Data;
+    fn body_item(&self) -> &Vec<Self::BodyItem> { &self.data }
+}
+
+pub struct Data {
+    pub memory: u32,
+    pub expr: Expr,
+    pub init: Vec<u8>,
+}
+
+impl WasmCodeGen for Data {
+    fn generate_wasm(&self) -> Vec<u8> {
+        [
+            encode_u32(self.memory),
+            self.expr.generate_wasm(),
+            encode_u32(self.init.len() as u32),
+            self.init.clone(),
+        ].concat()
     }
 }
 

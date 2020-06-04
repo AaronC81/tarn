@@ -70,6 +70,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ]
             }
         ],
+        data_sections: vec![
+            DataSection {
+                data: vec![
+                    Data {
+                        memory: 0,
+                        expr: Expr {
+                            instructions: vec![
+                                Instruction::I32Const(8),
+                            ]
+                        },
+                        init: "Hello, world!\n".bytes().collect(),
+                    }
+                ]
+            }
+        ],
         code_sections: vec![
             CodeSection {
                 codes: vec![
@@ -78,16 +93,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             locals: vec![],
                             expr: Expr {
                                 instructions: vec![
-                                    // Store a character "A"
-                                    Instruction::I32Const(8),
-                                    Instruction::I32Const(65),
-                                    Instruction::I32Store(MemArg { align: 2, offset: 0, }),
-
-                                    // Store a character "\n"
-                                    Instruction::I32Const(9),
-                                    Instruction::I32Const(10),
-                                    Instruction::I32Store(MemArg { align: 2, offset: 0, }),
-
                                     // Store a pointer
                                     Instruction::I32Const(0),
                                     Instruction::I32Const(8),
@@ -95,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                     // Store the length
                                     Instruction::I32Const(4),
-                                    Instruction::I32Const(2),
+                                    Instruction::I32Const("Hello, world!\n".len() as i32),
                                     Instruction::I32Store(MemArg { align: 2, offset: 0, }),
 
                                     // Write
