@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::wasm::{
+    *,
     core::*,
     instruction::*,
     sections::{*, code_section::*, data_section::*, export_section::*, import_section::*, memory_section::*, type_section::*},
@@ -19,15 +20,10 @@ use crate::codegen::*;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = Arc::new(TreeContext {
         parent: None,
-        symbol_type_table: [
-            ("fd_write".into(), Type::Function(
-                vec![Box::new(Type::Int), Box::new(Type::Int), Box::new(Type::Int), Box::new(Type::Int)],
-                Box::new(Type::Int)))
-        ].iter().cloned().collect(),
     });
 
-    let nodes = Node(NodeType::StaticCall(
-        "fd_write".into(),
+    let nodes = Node(NodeType::Call(
+        FuncId(0),
         vec![
             Box::new(Node(NodeType::IntegerConstant(1), ctx.clone())),
             Box::new(Node(NodeType::IntegerConstant(0), ctx.clone())),
@@ -37,16 +33,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ), ctx.clone());
 
     let gen_global_ctx = Arc::new(CodeGenGlobalContext {
-        symbol_loc_table: [
-            ("fd_write".into(), SymbolLoc::Func(0)),
+        function_table: [
+            (FuncId(0), (
+                Type::Function(
+                    vec![Type::Int, Type::Int, Type::Int, Type::Int], Box::new(Type::Int)
+                ),
+                vec![],
+            )),
         ].iter().cloned().collect(),
-        type_table: vec![],
+        type_table: [
+            (
+                Type::Function(
+                    vec![Type::Int, Type::Int, Type::Int, Type::Int], Box::new(Type::Int)
+                ),
+                TypeId(0),
+            ),
+        ].iter().cloned().collect(),
     });
 
     let genctx = Arc::new(CodeGenContext {
         global: gen_global_ctx.clone(),
         parent: None,
-        symbol_loc_table: HashMap::new(),
+        locals: HashMap::new(),
     });
 
     let code = nodes.generate_instructions(genctx);
