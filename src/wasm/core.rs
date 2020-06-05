@@ -42,6 +42,7 @@ impl WasmCodeGen for u32 {
     }
 }
 
+#[derive(Debug)]
 pub enum ValueType {
     I32,
     I64,

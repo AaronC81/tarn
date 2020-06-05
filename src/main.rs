@@ -1,7 +1,11 @@
 mod wasm;
+mod semantic_tree;
+mod codegen;
 
 use std::fs::File;
 use std::io::Write;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::wasm::{
     core::*,
@@ -9,8 +13,48 @@ use crate::wasm::{
     sections::{*, code_section::*, data_section::*, export_section::*, import_section::*, memory_section::*, type_section::*},
     module::*,
 };
+use crate::semantic_tree::*;
+use crate::codegen::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let ctx = Arc::new(TreeContext {
+        parent: None,
+        symbol_type_table: [
+            ("fd_write".into(), Type::Function(
+                vec![Box::new(Type::Int), Box::new(Type::Int), Box::new(Type::Int), Box::new(Type::Int)],
+                Box::new(Type::Int)))
+        ].iter().cloned().collect(),
+    });
+
+    let nodes = Node(NodeType::StaticCall(
+        "fd_write".into(),
+        vec![
+            Box::new(Node(NodeType::IntegerConstant(1), ctx.clone())),
+            Box::new(Node(NodeType::IntegerConstant(0), ctx.clone())),
+            Box::new(Node(NodeType::IntegerConstant(1), ctx.clone())),
+            Box::new(Node(NodeType::IntegerConstant(0), ctx.clone())),
+        ],
+    ), ctx.clone());
+
+    let gen_global_ctx = Arc::new(CodeGenGlobalContext {
+        symbol_loc_table: [
+            ("fd_write".into(), SymbolLoc::Func(0)),
+        ].iter().cloned().collect(),
+        type_table: vec![],
+    });
+
+    let genctx = Arc::new(CodeGenContext {
+        global: gen_global_ctx.clone(),
+        parent: None,
+        symbol_loc_table: HashMap::new(),
+    });
+
+    let code = nodes.generate_instructions(genctx);
+
+    println!("{:?}", code);
+
+    return Ok(());
+
     let module = Module {
         memory_sections: vec![
             MemorySection {
@@ -124,6 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         ]
     };
+
     let wasm = module.generate_wasm();
 
     let mut f = File::create("out.wasm")?;
