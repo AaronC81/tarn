@@ -18,18 +18,13 @@ use crate::semantic_tree::*;
 use crate::codegen::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let ctx = Arc::new(TreeContext {
-        parent: None,
-    });
-
-    let nodes = Node(NodeType::Root(vec![Box::new(
-        Node(NodeType::FunctionDefinition(FuncId(0), Type::Function(vec![], None), vec![], Box::new(Node(NodeType::Block(
+    let nodes = Node::Root(vec![Box::new(
+        Node::FunctionDefinition(FuncId(0), Type::Function(vec![], None), vec![], Box::new(Node::Block(
             vec![
 
             ],
             false
-        ), ctx.clone()))), ctx.clone())
-    )]), ctx.clone());
+        ))))]);
 
     //     Node(NodeType::Call(
     //     FuncId(0),

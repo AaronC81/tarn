@@ -2,12 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use crate::wasm::{LocalId, TypeId, FuncId, sections::type_section::FuncType, core::ValueType};
 
-pub struct Node(pub NodeType, pub Arc<TreeContext>);
-
-pub struct TreeContext {
-    pub parent: Option<Arc<TreeContext>>,
-}
-
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Type {
     Int,
@@ -34,7 +28,7 @@ impl Type {
     }
 }
 
-pub enum NodeType {
+pub enum Node {
     Root(Vec<Box<Node>>),
     FunctionDefinition(FuncId, Type, Vec<Type>, Box<Node>), // ID, type, locals, body
     IntegerConstant(i64),

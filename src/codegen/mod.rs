@@ -1,4 +1,4 @@
-use crate::semantic_tree::{Node, NodeType, Type};
+use crate::semantic_tree::{Node, Type};
 use crate::wasm::{LocalId, TypeId, FuncId, module::Module, instruction::{Instruction, Expr}, sections::*, core::ValueType};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -55,14 +55,14 @@ pub trait CodeGen {
 
 impl CodeGen for Node {
     fn generate_module<'a>(&self) -> Result<Module, CodeGenError> {
-        if let Node(NodeType::Root(children), _) = self {
+        if let Node::Root(children) = self {
             // Create the function and type tables
             let mut type_table = BiHashMap::new();
             let mut function_table = Box::new(HashMap::new());
 
             // Iterate over all functions at the root
             for child in children {
-                if let Node(NodeType::FunctionDefinition(id, func_type, locals, body), _) = &**child {
+                if let Node::FunctionDefinition(id, func_type, locals, body) = &**child {
                     // Create a function table entry
                     function_table.insert(*id, (func_type.clone(), locals.clone()));
 
@@ -85,7 +85,7 @@ impl CodeGen for Node {
 
             // Iterate over all functions at the root, again
             for child in children {
-                if let Node(NodeType::FunctionDefinition(id, _, locals, body), _) = &**child {
+                if let Node::FunctionDefinition(id, _, locals, body) = &**child {
                     // Create a function context
                     let context = Arc::new(CodeGenContext {
                         global: global_context.clone(), parent: None, locals: locals.clone(),
@@ -175,18 +175,18 @@ impl CodeGen for Node {
     }
 
     fn generate_instructions(&self, ctx: Arc<CodeGenContext>) -> Result<Vec<Instruction>, CodeGenError> {
-        use NodeType::*;
+        use Node::*;
         use Instruction::*;
         match self {
             // TODO: all integer constants are i32 currently
-            Node(IntegerConstant(i), _) => Ok(vec![ I32Const(*i as i32) ]),
+            IntegerConstant(i) => Ok(vec![ I32Const(*i as i32) ]),
 
-            Node(Local(LocalId(id)), _) => Ok(vec![ LocalGet(*id) ]),
+            Local(LocalId(id)) => Ok(vec![ LocalGet(*id) ]),
 
             // TODO: make these more iterator
             // TODO: bad implementation, doesn't create a context or honor termination
             // TODO: drop unused values
-            Node(NodeType::Block(ists, _), _) => {
+            Node::Block(ists, _) => {
                 let mut result: Vec<Instruction> = vec![];
                 for ist in ists {
                     let mut this = ist.generate_instructions(ctx.clone())?;
@@ -195,7 +195,7 @@ impl CodeGen for Node {
                 Ok(result)
             }
 
-            Node(NodeType::Call(FuncId(id), args), _) => {
+            Node::Call(FuncId(id), args) => {
                 let mut result: Vec<Instruction> = vec![];
                 for arg in args {
                     let mut this = arg.generate_instructions(ctx.clone())?;
@@ -205,10 +205,10 @@ impl CodeGen for Node {
                 Ok(result)
             },
 
-            Node(NodeType::FunctionDefinition(_, _, _, _), _) =>
+            Node::FunctionDefinition(_, _, _, _) =>
                 Err(CodeGenError::new("can't generate instructions for a function definition".into())),
 
-            Node(NodeType::Root(_), _) =>
+            Node::Root(_) =>
                 Err(CodeGenError::new("can't generate instructions for a root".into())),
         }
     }
