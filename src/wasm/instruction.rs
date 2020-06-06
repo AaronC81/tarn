@@ -1,6 +1,6 @@
 use crate::wasm::core::{WasmCodeGen, ValueType, encode_i32, encode_u32};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     Unreachable,
     Nop,
@@ -96,7 +96,7 @@ impl WasmCodeGen for Instruction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BlockType {
     Empty,
     ValueType(ValueType),
@@ -113,7 +113,7 @@ impl WasmCodeGen for BlockType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemArg {
     pub align: u32,
     pub offset: u32,

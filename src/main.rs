@@ -22,44 +22,58 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         parent: None,
     });
 
-    let nodes = Node(NodeType::Call(
-        FuncId(0),
-        vec![
-            Box::new(Node(NodeType::IntegerConstant(1), ctx.clone())),
-            Box::new(Node(NodeType::IntegerConstant(0), ctx.clone())),
-            Box::new(Node(NodeType::IntegerConstant(1), ctx.clone())),
-            Box::new(Node(NodeType::IntegerConstant(0), ctx.clone())),
-        ],
-    ), ctx.clone());
+    let nodes = Node(NodeType::Root(vec![Box::new(
+        Node(NodeType::FunctionDefinition(FuncId(0), Type::Function(vec![], None), vec![], Box::new(Node(NodeType::Block(
+            vec![
 
-    let gen_global_ctx = Arc::new(CodeGenGlobalContext {
-        function_table: [
-            (FuncId(0), (
-                Type::Function(
-                    vec![Type::Int, Type::Int, Type::Int, Type::Int], Box::new(Type::Int)
-                ),
-                vec![],
-            )),
-        ].iter().cloned().collect(),
-        type_table: [
-            (
-                Type::Function(
-                    vec![Type::Int, Type::Int, Type::Int, Type::Int], Box::new(Type::Int)
-                ),
-                TypeId(0),
-            ),
-        ].iter().cloned().collect(),
-    });
+            ],
+            false
+        ), ctx.clone()))), ctx.clone())
+    )]), ctx.clone());
 
-    let genctx = Arc::new(CodeGenContext {
-        global: gen_global_ctx.clone(),
-        parent: None,
-        locals: HashMap::new(),
-    });
+    //     Node(NodeType::Call(
+    //     FuncId(0),
+    //     vec![
+    //         Box::new(Node(NodeType::IntegerConstant(1), ctx.clone())),
+    //         Box::new(Node(NodeType::IntegerConstant(0), ctx.clone())),
+    //         Box::new(Node(NodeType::IntegerConstant(1), ctx.clone())),
+    //         Box::new(Node(NodeType::IntegerConstant(0), ctx.clone())),
+    //     ],
+    // ), ctx.clone());
 
-    let code = nodes.generate_instructions(genctx);
+    // let gen_global_ctx = Arc::new(CodeGenGlobalContext {
+    //     function_table: [
+    //         (FuncId(0), (
+    //             Type::Function(
+    //                 vec![Type::Int, Type::Int, Type::Int, Type::Int], Box::new(Type::Int)
+    //             ),
+    //             vec![],
+    //         )),
+    //     ].iter().cloned().collect(),
+    //     type_table: [
+    //         (
+    //             TypeId(0),
+    //             Type::Function(
+    //                 vec![Type::Int, Type::Int, Type::Int, Type::Int], Box::new(Type::Int)
+    //             ),
+    //         ),
+    //     ].iter().cloned().collect(),
+    // });
 
-    println!("{:?}", code);
+    // let genctx = Arc::new(CodeGenContext {
+    //     global: gen_global_ctx.clone(),
+    //     parent: None,
+    //     locals: vec![],
+    // });
+
+    let module = nodes.generate_module()?;
+
+    let wasm = module.generate_wasm();
+
+    let mut f = File::create("exp.wasm")?;
+    f.write_all(&wasm[..])?;
+
+    // println!("{:?}", code);
 
     return Ok(());
 
