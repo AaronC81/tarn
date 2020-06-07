@@ -1,5 +1,5 @@
-use crate::semantic_tree::{Node, Type};
-use crate::wasm::{LocalId, TypeId, FuncId, module::Module, instruction::{Instruction, Expr}, sections::*, core::ValueType};
+use crate::semantic_tree::{Node, Type, FunctionDefinition};
+use crate::wasm::{LocalId, TypeId, FuncId, module::Module, instruction::{Instruction, Expr, MemArg}, sections::*, core::ValueType};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::fmt::{Display, Formatter};
@@ -58,13 +58,19 @@ impl CodeGen for Node {
         if let Node::Root(children) = self {
             // Create the function and type tables
             let mut type_table = BiHashMap::new();
-            let mut function_table = Box::new(HashMap::new());
+            let mut function_vec = Box::new(vec![]);
+            let mut import_vec = vec![];
 
             // Iterate over all functions at the root
             for child in children {
-                if let Node::FunctionDefinition(id, func_type, locals, body) = &**child {
+                if let Node::FunctionDeclaration(id, func_type, def) = child {
                     // Create a function table entry
-                    function_table.insert(*id, (func_type.clone(), locals.clone()));
+                    match def {
+                        FunctionDefinition::Implementation(locals, body) =>
+                            function_vec.push((func_type.clone(), locals.clone())),
+                        FunctionDefinition::Import(module, name) =>
+                            import_vec.push((module.clone(), name.clone())),
+                    };
 
                     // Create a type table entry, if there isn't one
                     if !type_table.contains_right(func_type) {
@@ -75,9 +81,19 @@ impl CodeGen for Node {
                 }
             }
 
+            // Transform the vec into a hashmap of FuncIds
+            // The imported functions go first, so offset other IDs
+            let function_table = function_vec
+                .iter()
+                .cloned()
+                .enumerate()
+                .map(|(i, x)| (FuncId((i + import_vec.len()) as u32), x))
+                .collect::<HashMap<_, _>>();
+
             // Create the global context
             let global_context = Arc::new(CodeGenGlobalContext {
-                type_table: type_table.clone(), function_table: *function_table.clone()
+                type_table: type_table.clone(),
+                function_table: function_table.clone()
             });
 
             // Create a code table
@@ -85,13 +101,15 @@ impl CodeGen for Node {
 
             // Iterate over all functions at the root, again
             for child in children {
-                if let Node::FunctionDefinition(id, _, locals, body) = &**child {
-                    // Create a function context
-                    let context = Arc::new(CodeGenContext {
-                        global: global_context.clone(), parent: None, locals: locals.clone(),
-                    });
+                if let Node::FunctionDeclaration(id, _, def) = child {
+                    // If this is a function implementation, create a function context and generate code
+                    if let FunctionDefinition::Implementation(locals, body) = def {
+                        let context = Arc::new(CodeGenContext {
+                            global: global_context.clone(), parent: None, locals: locals.clone(),
+                        });
 
-                    code_table.insert(*id, body.generate_instructions(context)?);
+                        code_table.insert(*id, body.generate_instructions(context)?);
+                    }
                 } else {
                     return Err(CodeGenError::new("root must only contain valid function definitions".into()));
                 }
@@ -147,8 +165,18 @@ impl CodeGen for Node {
                     }
                 })
             }
+            let imports = import_vec
+                .iter()
+                .enumerate()
+                .map(|(i, (module, name))| import_section::Import {
+                    desc: import_section::ImportDesc::Func(i as u32),
+                    module: module.clone(),
+                    name: name.clone(),
+                })
+                .collect();
             let code_section = CodeSection { codes };
             let function_section = FunctionSection { types: functions };
+            let import_section = ImportSection { imports };
 
             // Build a module
             Ok(Module {
@@ -166,8 +194,15 @@ impl CodeGen for Node {
                         }
                     ]
                 }],
-                export_sections: vec![],
-                import_sections: vec![],
+                export_sections: vec![ExportSection {
+                    exports: vec![
+                        export_section::Export {
+                            desc: export_section::ExportDesc::Mem(0),
+                            name: "memory".into(),
+                        }
+                    ]
+                }],
+                import_sections: vec![import_section],
             })
         } else {
             Err(CodeGenError::new("must generate module on a root node".into()))
@@ -177,6 +212,7 @@ impl CodeGen for Node {
     fn generate_instructions(&self, ctx: Arc<CodeGenContext>) -> Result<Vec<Instruction>, CodeGenError> {
         use Node::*;
         use Instruction::*;
+
         match self {
             // TODO: all integer constants are i32 currently
             IntegerConstant(i) => Ok(vec![ I32Const(*i as i32) ]),
@@ -205,7 +241,15 @@ impl CodeGen for Node {
                 Ok(result)
             },
 
-            Node::FunctionDefinition(_, _, _, _) =>
+            Node::MemSet(addr, expr) => {
+                Ok([
+                    addr.generate_instructions(ctx.clone())?,
+                    expr.generate_instructions(ctx.clone())?,
+                    vec![I32Store(MemArg { align: 2, offset: 0, })],
+                ].concat())
+            }
+
+            Node::FunctionDeclaration(_, _, _) =>
                 Err(CodeGenError::new("can't generate instructions for a function definition".into())),
 
             Node::Root(_) =>

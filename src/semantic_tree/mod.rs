@@ -28,11 +28,17 @@ impl Type {
     }
 }
 
+pub enum FunctionDefinition {
+    Import(String, String),
+    Implementation(Vec<Type>, Box<Node>),
+}
+
 pub enum Node {
-    Root(Vec<Box<Node>>),
-    FunctionDefinition(FuncId, Type, Vec<Type>, Box<Node>), // ID, type, locals, body
+    Root(Vec<Node>),
+    FunctionDeclaration(FuncId, Type, FunctionDefinition), // ID, type, locals, body
     IntegerConstant(i64),
     Local(LocalId),
-    Call(FuncId, Vec<Box<Node>>),
+    MemSet(Box<Node>, Box<Node>),
+    Call(FuncId, Vec<Node>),
     Block(Vec<Node>, bool), // bool = is this block terminated?
 }

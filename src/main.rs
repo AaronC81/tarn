@@ -18,13 +18,40 @@ use crate::semantic_tree::*;
 use crate::codegen::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let nodes = Node::Root(vec![Box::new(
-        Node::FunctionDefinition(FuncId(0), Type::Function(vec![], None), vec![], Box::new(Node::Block(
-            vec![
+    let nodes = Node::Root(vec![
+        Node::FunctionDeclaration(
+            FuncId(0),
+            Type::Function(
+                vec![Type::Int, Type::Int, Type::Int, Type::Int],
+                Some(Box::new(Type::Int))
+            ),
+            FunctionDefinition::Import("wasi_unstable".into(), "fd_write".into())
+        ),
+        Node::FunctionDeclaration(
+            FuncId(1),
+            Type::Function(vec![], Some(Box::new(Type::Int))),
+            FunctionDefinition::Implementation(vec![], Box::new(Node::Block(
+                vec![
+                    // Set up array
+                    Node::MemSet(Box::new(Node::IntegerConstant(0)), Box::new(Node::IntegerConstant(8))),
+                    Node::MemSet(Box::new(Node::IntegerConstant(4)), Box::new(Node::IntegerConstant(2))),
 
-            ],
-            false
-        ))))]);
+                    // Set up string
+                    Node::MemSet(Box::new(Node::IntegerConstant(8)), Box::new(Node::IntegerConstant(65))),
+                    Node::MemSet(Box::new(Node::IntegerConstant(9)), Box::new(Node::IntegerConstant(10))),
+
+                    // Call
+                    Node::Call(FuncId(0), vec![
+                        Node::IntegerConstant(1),
+                        Node::IntegerConstant(0),
+                        Node::IntegerConstant(1),
+                        Node::IntegerConstant(0),
+                    ])
+                ],
+                false
+            )))
+        )
+    ]);
 
     //     Node(NodeType::Call(
     //     FuncId(0),
@@ -61,7 +88,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     locals: vec![],
     // });
 
-    let module = nodes.generate_module()?;
+    let mut module = nodes.generate_module()?;
+    module.export_sections[0].exports.push(Export {
+        desc: ExportDesc::Func(1),
+        name: "_start".into(),
+    });
 
     let wasm = module.generate_wasm();
 
