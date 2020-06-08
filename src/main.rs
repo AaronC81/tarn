@@ -1,6 +1,7 @@
 mod wasm;
 mod semantic_tree;
 mod codegen;
+mod parser;
 
 use std::fs::File;
 use std::io::Write;
@@ -18,6 +19,10 @@ use crate::semantic_tree::*;
 use crate::codegen::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("{:?}", parser::tarn_parser::function_import("import fn wasi_unstable fd_print(x : Int) -> Void;"));
+
+    return Ok(());
+
     let nodes = Node::Root(vec![
         Node::FunctionDeclaration(
             FuncId(0),
