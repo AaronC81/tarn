@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use crate::wasm::{LocalId, TypeId, FuncId, sections::type_section::FuncType, core::ValueType};
 
+pub mod semanticize;
+
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Type {
     Int,

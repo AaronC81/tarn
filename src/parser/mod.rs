@@ -2,6 +2,7 @@ use peg;
 
 #[derive(Debug)]
 pub enum Node {
+    Program(Vec<Node>),
     Identifier(String),
     IntegerLiteral(i64),
     Block(Vec<Node>, bool),
@@ -19,6 +20,7 @@ pub enum Node {
         return_type: Box<Node>,
     },
     FunctionParameter(String, Box<Node>),
+    MemSet(Box<Node>, Box<Node>)
 }
 
 use Node::*;
@@ -56,7 +58,12 @@ peg::parser!{
         // Expressions - these cascade!
 
         pub rule expr() -> Node
-            = block()
+            = mem_set()
+
+        pub rule mem_set() -> Node
+            = "set!" __ target:expr() __ value:expr()
+            { MemSet(Box::new(target), Box::new(value)) }
+            / block()
 
         rule block() -> Node
             = "{" _ stmts:expr() ** (_ ";" _) _ term:";"? _ "}"
@@ -92,5 +99,9 @@ peg::parser!{
             = "import" __ "fn" __ module:identifier_s() __ name:identifier_s()
               "(" _ params:function_parameter() ** ("," _) _ ")" _ "->" _ return_type:typ() _ ";"
             { FunctionImport { module, name, params, return_type: Box::new(return_type) } }
+
+        pub rule program() -> Node
+            = ";"* _ n:(function_import() / function_implementation()) ** (_ ";"* _) ";"* _
+            { Program(n) }
     }
 }

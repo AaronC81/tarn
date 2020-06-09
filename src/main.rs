@@ -15,11 +15,34 @@ use crate::wasm::{
     sections::{*, code_section::*, data_section::*, export_section::*, import_section::*, memory_section::*, type_section::*},
     module::*,
 };
-use crate::semantic_tree::*;
+use crate::semantic_tree::{*, semanticize::*};
 use crate::codegen::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", parser::tarn_parser::function_import("import fn wasi_unstable fd_print(x : Int) -> Void;"));
+    let parsed = parser::tarn_parser::program("
+        import fn wasi_unstable fd_write(fd : Int, ptr : Int, len : Int, out : Int) -> Int;
+
+        fn _start() -> Int {
+            set! 0 8;
+            set! 4 2;
+            set! 8 65;
+            set! 9 10;
+            fd_write(1, 0, 1, 0)
+        }
+    ")?;
+
+    let semantic = parsed.to_semantic_tree()?;
+
+    let mut module = semantic.generate_module()?;
+    module.export_sections[0].exports.push(Export {
+        desc: ExportDesc::Func(1),
+        name: "_start".into(),
+    });
+
+    let wasm = module.generate_wasm();
+
+    let mut f = File::create("full.wasm")?;
+    f.write_all(&wasm[..])?;
 
     return Ok(());
 
